@@ -17,21 +17,21 @@ class CodeReader {
     constructor(code: String) {
         val strings = mutableListOf<String>()
 
-        //FIXME(leocth): what the heck?
         var builder: StringBuilder? = StringBuilder()
+        // Removes single line and multiline comments from the string for ease of parsing
         for (c in (code.replace("(/\\*([^*]|[\r\n]|(\\*+([^*/]|[\r\n])))*\\*+/)|(//.*)".toRegex(), "")).toCharArray()) {
             when (split(c)) {
                 SplitType.NONE -> {
-                    if (builder == null) builder = StringBuilder()
+                    if (builder == null) builder = StringBuilder();
                     builder.append(c);
                 }
-                SplitType.INCLUSIVE -> {
-                    if (builder != null) strings.add(builder.toString())
+                SplitType.EXCLUSIVE -> {
+                    if (builder != null) strings.add(builder.toString());
                     builder = null;
                 }
-                SplitType.EXCLUSIVE -> {
-                    if (builder != null) strings.add(builder.toString())
-                    strings.add(c.toString())
+                SplitType.INCLUSIVE -> {
+                    if (builder != null) strings.add(builder.toString());
+                    strings.add(c.toString());
                     builder = null;
                 }
             }
@@ -117,7 +117,6 @@ class CodeReader {
                 break
             }
         }
-
         for (i in start..strings.size) {
             val s = strings[i]
             stringBuilder.append(s).append(' ')

@@ -12,7 +12,6 @@ import net.oskarstrom.lucuma.insn.target.Target
 import net.oskarstrom.lucuma.insn.value.ChannelValue
 import net.oskarstrom.lucuma.insn.value.HexValue
 import net.oskarstrom.lucuma.insn.value.Value
-import net.oskarstrom.lucuma.io.ArduinoDmxIO
 import net.oskarstrom.lucuma.io.ConsoleDmxIO
 import net.oskarstrom.lucuma.io.DmxIO
 
@@ -53,7 +52,7 @@ class Parser(code: String) {
             }
         }
 
-        val channels = variables["channels"] ?: reader.exception("Could not find channels declared");
+        val channels = variables["channels"] ?: reader.exception("Could not find channels declared").hashCode();
 
         val currentFixtures = fixtures.size + 1
         when (target) {

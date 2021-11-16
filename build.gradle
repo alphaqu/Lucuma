@@ -11,6 +11,10 @@ repositories {
 }
 
 
+dependencies {
+    implementation 'com.fazecast:jSerialComm:2.7.0'
+}
+
 
 compileKotlin {
     kotlinOptions.jvmTarget = '1.8'

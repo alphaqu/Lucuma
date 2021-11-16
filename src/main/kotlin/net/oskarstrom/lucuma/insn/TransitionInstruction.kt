@@ -27,7 +27,7 @@ class TransitionInstruction(
             value.apply(this.stopChannels, targetFixture)
         }
 
-        startTime = getTimeMillis()
+        startTime = System.currentTimeMillis()
     }
 
     // TODO: deduplicate code that has in common with FadeInstruction
@@ -37,7 +37,7 @@ class TransitionInstruction(
             else if (ratio >= 1) b
             else (a + (b - a) * ratio).roundToInt()
 
-        val time = getTimeMillis() - startTime
+        val time = System.currentTimeMillis() - startTime
         val rawDelta = time.toDouble() / transitionTime
         val delta = rawDelta.coerceIn(0.0, 1.0)
         for (i in channels.indices) {

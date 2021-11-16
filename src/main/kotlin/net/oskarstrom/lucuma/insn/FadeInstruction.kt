@@ -41,7 +41,7 @@ class FadeInstruction(
                 value.apply(fadeChannels[i], targetFixture)
         }
 
-        this.startTime = getTimeMillis()
+        this.startTime = System.currentTimeMillis()
     }
 
     override fun render(channels: UByteArray, speed: Double) {
@@ -50,7 +50,7 @@ class FadeInstruction(
             else if (ratio >= 1) b
             else (a + (b - a) * ratio).roundToInt()
 
-        val time = getTimeMillis() - startTime
+        val time = System.currentTimeMillis() - startTime
         val rawDelta = time.toDouble() / fadeTime
         val delta = rawDelta.coerceIn(0.0, 1.0)
         for (i in channels.indices) {
