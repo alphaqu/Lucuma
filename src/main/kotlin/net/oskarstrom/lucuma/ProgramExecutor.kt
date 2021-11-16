@@ -25,17 +25,16 @@ class ProgramExecutor(
         Thread() { while (true) tickReader() }.start()
         Thread() { while (true) tickDrawer() }.start()
 
-        val scanner = Scanner(System.`in`)
         while (true) {
-            setCurrentProgram(scanner.nextLine())
+            readLine()?.let { setCurrentProgram(it) }
         }
     }
 
     private fun setCurrentProgram(name: String) {
-        currentProgram = programs[name] ?: fun(): Program {
+        currentProgram = programs[name] ?: run {
             println("Could not find program $name")
-            return Program("main", arrayOf(emptyGroup))
-        }.invoke()
+            Program("main", arrayOf(emptyGroup))
+        }
         groupPos = 0
     }
 

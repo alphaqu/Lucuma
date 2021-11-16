@@ -13,14 +13,13 @@ class FadeInstruction(
     channels: Int
 ) : Instruction {
 
-    private val targetFixtures: List<Fixture>
+    private val targetFixtures: List<Fixture> = findFixtures(target, fixtures)
     private val fadeChannels = Array(values.size) { UByteArray((channels)) }
     private val channelFilter = BooleanArray(channels)
     private val stepAmount = 1.0 / (values.size - 1)
 
 
     init {
-        this.targetFixtures = findFixtures(target, fixtures)
         for (fixture in targetFixtures) {
             for (i in fixture.channelStart until fixture.channelStart + fixture.channels) {
                 channelFilter[i] = true
@@ -52,7 +51,7 @@ class FadeInstruction(
             else (a + (b - a) * ratio).roundToInt()
 
         val time = System.currentTimeMillis() - startTime
-        val rawDelta: Double = time.toDouble() / fadeTime
+        val rawDelta = time.toDouble() / fadeTime
         val delta = rawDelta.coerceIn(0.0, 1.0)
         for (i in channels.indices) {
             if (channelFilter[i]) {

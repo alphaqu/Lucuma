@@ -12,14 +12,13 @@ import net.oskarstrom.lucuma.insn.target.Target
 import net.oskarstrom.lucuma.insn.value.ChannelValue
 import net.oskarstrom.lucuma.insn.value.HexValue
 import net.oskarstrom.lucuma.insn.value.Value
-import net.oskarstrom.lucuma.io.ArduinoDmxIO
 import net.oskarstrom.lucuma.io.ConsoleDmxIO
 import net.oskarstrom.lucuma.io.DmxIO
 
 class Parser(code: String) {
     val reader = CodeReader(code)
-    private val fixtures = ArrayList<Fixture>()
-    private val programs = HashMap<String, Program>()
+    private val fixtures = mutableListOf<Fixture>()
+    private val programs = mutableMapOf<String, Program>()
     private var channels = 0
 
 
@@ -40,7 +39,7 @@ class Parser(code: String) {
         println("=========================== FIXTURE $target ===========================")
         if (reader.read() != "set") reader.exception("Fixture setter set keyword is missing")
 
-        val variables = HashMap<String, Int>()
+        val variables = mutableMapOf<String, Int>()
         while (true) {
             val variableName = reader.read()
             if (reader.read() != "=") reader.exception("Fixture variable setter is missing =")
@@ -53,11 +52,7 @@ class Parser(code: String) {
             }
         }
 
-        val channels = variables["channels"]
-        if (channels == null) {
-            reader.exception("Could not find channels declared")
-            throw LucumaParseException("what")
-        }
+        val channels = variables["channels"] ?: reader.exception("Could not find channels declared").hashCode();
 
         val currentFixtures = fixtures.size + 1
         when (target) {
@@ -87,7 +82,7 @@ class Parser(code: String) {
 
     private fun parseTarget(reader: CodeReader): Target {
         val read = reader.read()
-        return if (read == "*") GlobalTarget()
+        return if (read == "*") GlobalTarget
         else if (read.contains("..")) {
             val split = read.split("..")
             RangeTarget(parseNumber(reader, split[0]), parseNumber(reader, split[1]))
@@ -99,8 +94,8 @@ class Parser(code: String) {
         println("=========================== PROGRAM $programName ===========================")
         val subReader = reader.subReader("{", "}")
 
-        val groups = ArrayList<Group>()
-        val instructions = ArrayList<Instruction>()
+        val groups = mutableListOf<Group>()
+        val instructions = mutableListOf<Instruction>()
         while (!subReader.hasMore()) {
             val read = subReader.peek()
             println(read)
@@ -129,7 +124,7 @@ class Parser(code: String) {
 
         return when (reader.peek()) {
             ">" -> {
-                val values = ArrayList<Value>()
+                val values = mutableListOf<Value>()
                 values.add(value)
                 while (reader.peek() == ">") {
                     reader.read() // peek

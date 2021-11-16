@@ -1,45 +1,6 @@
-
-// === SELECTORS ===
-// "*" select all lamps.
-// "x" select a single lamp, example "1" to select lamp 1
-// "x..y" select a range on lamps, example "1..6" selects lamp 1 2 3 4 5 6
-
-
-// === VALUES ===
-// "#xxxxxx" sets a hex code on every channel. "#ff0000" will make channel 1 on, and 2, 3 off, (its red)
-// "x" sets all channels to a ubyte value (0-255). example "255" will make every channel on the fixtures on max
-// "c:x" sets a single channel to a ubyte value (0-255). example "6:255" will make channel 6 on the fixtures be on 255
-
-
-// === INSTRUCTIONS ===
-
-// == wait: wX
-// This will make it wait X amount of ms before continuing executing instructions
-// example w100 will wait 100ms
-
-// == assignment: selector = value
-// this will assign the selectors lamps into the value instantly
-
-// == transition: selector = value in x
-// this will make the selected lamps current values fade to the target value in x milliseconds
-// example:
-// 1..6 = #ffffff in 100
-// if the lamps were black in the state before the instruction it will take 100ms to make it go to white.
-
-// == fading: selector = value > value > value in x
-// the selector is the lamps you want to be fading and then you can fade between multiple values in 1 instruction.
-// "in x" is the total time for the fade. THIS WILL NOT TAKE TIME. YOU NEED TO ADD A WAIT FOR THE FADE TO HAVE TIME TO HAPPEN
-// example: 1..8 = #ff0000 > #00ff00 > #0000ff > #ff0000 in 1000
-// select all lamps from 1 to 8, and then fade from red to green to blue and then back to red in 1 second
-
-
-// This is the fixture setup that needs to happen before any programs.
-// syntax: fixture selector set property = propertyValue
 fixture 1..8 set channels = 7
 
-// The program main is the program that runs on launch and if anything else happens
 program main {
-    1..8 = 7:255 // set channel 7 to 255 on lamps 1 2 3 4 5 6 7
-    1..8 = #ff0000 > #ffff00 > #00ff00 > #00ffff > #0000ff > #ff00ff > #ff0000 in 100 // fade like a rainbow on those channels in 100ms
-    w100 // wait to give the fade time to execute. All instructions that are not wait are instant.
+    1..8 = #ff0000 > #ffff00 > #00ff00 > #00ffff > #0000ff > #ff00ff > #ff0000 in 10000
+    w10000
 }

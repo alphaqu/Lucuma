@@ -12,15 +12,9 @@ class TransitionInstruction(
     channels: Int,
     fixtures: List<Fixture>
 ) : Instruction {
-    private val targetFixtures: List<Fixture>
+    private val targetFixtures: List<Fixture> = findFixtures(target, fixtures)
     private val startChannels = UByteArray(channels)
     private val stopChannels = UByteArray(channels)
-
-
-    init {
-        this.targetFixtures = findFixtures(target, fixtures)
-    }
-
     private var startTime = 0L
 
     override fun start(oldChannels: UByteArray) {
@@ -34,9 +28,9 @@ class TransitionInstruction(
         }
 
         startTime = System.currentTimeMillis()
-
     }
 
+    // TODO: deduplicate code that has in common with FadeInstruction
     override fun render(channels: UByteArray, speed: Double) {
         fun blend(a: Int, b: Int, ratio: Double): Int =
             if (ratio <= 0) a
@@ -44,7 +38,7 @@ class TransitionInstruction(
             else (a + (b - a) * ratio).roundToInt()
 
         val time = System.currentTimeMillis() - startTime
-        val rawDelta: Double = time.toDouble() / transitionTime
+        val rawDelta = time.toDouble() / transitionTime
         val delta = rawDelta.coerceIn(0.0, 1.0)
         for (i in channels.indices) {
             val start = startChannels[i].toInt()
