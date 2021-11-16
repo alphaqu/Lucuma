@@ -1,9 +1,9 @@
-package net.oskarstrom.lucuma.insn.value
+package net.oskarstrom.lucuma.instruction.value
 
 import net.oskarstrom.lucuma.Fixture
 
+@ExperimentalUnsignedTypes
 data class HexValue(val values: UByteArray) : Value {
-
     override fun apply(channels: UByteArray, fixture: Fixture) {
         for (i in values.indices) {
             channels[fixture.channelStart + i] = values[i]

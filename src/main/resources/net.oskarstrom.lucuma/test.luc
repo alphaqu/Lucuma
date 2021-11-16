@@ -1,6 +1,8 @@
 fixture 1..8 set channels = 7
 
 program main {
-    1..8 = #ff0000 > #ffff00 > #00ff00 > #00ffff > #0000ff > #ff00ff > #ff0000 in 10000
-    w10000
+    1..8 = #ffffff
+    w500
+    1..8 = #000000
+    w500
 }

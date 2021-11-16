@@ -1,6 +1,7 @@
-package net.oskarstrom.lucuma.insn.target
+package net.oskarstrom.lucuma.instruction.selector
 
-data class RangeTarget(val low: Int, val high: Int) : Target {
+@ExperimentalUnsignedTypes
+data class RangeSelector(val low: Int, val high: Int) : Selector {
     override fun testFixture(fixture: Int): Boolean = fixture in low..high
 
     override fun toString(): String {

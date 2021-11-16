@@ -1,19 +1,18 @@
-package net.oskarstrom.lucuma.insn
+package net.oskarstrom.lucuma.instruction
 
 import net.oskarstrom.lucuma.Fixture
-import net.oskarstrom.lucuma.insn.target.Target
+import net.oskarstrom.lucuma.instruction.selector.Selector
 
-interface Instruction {
+@ExperimentalUnsignedTypes
+interface Operation {
     fun start(oldChannels: UByteArray) {}
     fun render(channels: UByteArray, speed: Double) {}
     fun stop() {}
 
-    fun getDuration(): Int
-
-    fun findFixtures(target: Target, fixtures: List<Fixture>): List<Fixture> {
+    fun findFixtures(selector: Selector, fixtures: List<Fixture>): List<Fixture> {
         val fixturesOut = ArrayList<Fixture>()
         for (fixture in fixtures) {
-            if (target.testFixture(fixture.id)) {
+            if (selector.testFixture(fixture.id)) {
                 fixturesOut.add(fixture)
             }
         }

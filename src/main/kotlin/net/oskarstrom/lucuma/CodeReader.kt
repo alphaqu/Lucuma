@@ -2,6 +2,7 @@ package net.oskarstrom.lucuma
 
 import net.oskarstrom.lucuma.error.LucumaParseException
 
+@ExperimentalUnsignedTypes
 class CodeReader {
     private val strings: Array<String>
     private var pos = 0
@@ -106,6 +107,7 @@ class CodeReader {
     }
 
     fun hasMore() = peekNextIndex() >= end
+
     fun end() = peekNextIndex() > end
 
     fun exception(error: String, line: Boolean = false) {

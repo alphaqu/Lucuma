@@ -1,6 +1,7 @@
-package net.oskarstrom.lucuma.insn.target
+package net.oskarstrom.lucuma.instruction.selector
 
-data class SingleTarget(val id: Int): Target {
+@ExperimentalUnsignedTypes
+data class SingleSelector(val id: Int) : Selector {
     override fun testFixture(fixture: Int): Boolean = fixture == id
 
     override fun toString(): String {

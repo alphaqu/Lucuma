@@ -1,18 +1,18 @@
-package net.oskarstrom.lucuma.insn
+package net.oskarstrom.lucuma.instruction
 
 import net.oskarstrom.lucuma.Fixture
-import net.oskarstrom.lucuma.insn.target.Target
-import net.oskarstrom.lucuma.insn.value.Value
-import kotlin.math.roundToInt
+import net.oskarstrom.lucuma.instruction.selector.Selector
+import net.oskarstrom.lucuma.instruction.value.Value
 
-class TransitionInstruction(
-    target: Target,
+@ExperimentalUnsignedTypes
+class TransitionOperation(
+    selector: Selector,
     private val value: Value,
     private val transitionTime: Int,
     channels: Int,
     fixtures: List<Fixture>
-) : Instruction {
-    private val targetFixtures: List<Fixture> = findFixtures(target, fixtures)
+) : Operation {
+    private val targetFixtures: List<Fixture> = findFixtures(selector, fixtures)
     private val startChannels = UByteArray(channels)
     private val stopChannels = UByteArray(channels)
     private var startTime = 0L
@@ -32,20 +32,12 @@ class TransitionInstruction(
 
     // TODO: deduplicate code that has in common with FadeInstruction
     override fun render(channels: UByteArray, speed: Double) {
-        fun blend(a: Int, b: Int, ratio: Double): Int =
-            if (ratio <= 0) a
-            else if (ratio >= 1) b
-            else (a + (b - a) * ratio).roundToInt()
-
-        val time = System.currentTimeMillis() - startTime
-        val rawDelta = time.toDouble() / transitionTime
-        val delta = rawDelta.coerceIn(0.0, 1.0)
+        val delta = Math.delta(startTime, transitionTime)
         for (i in channels.indices) {
             val start = startChannels[i].toInt()
             val end = stopChannels[i].toInt()
-            channels[i] = blend(start, end, delta).toUByte()
+            channels[i] = Math.blend(start, end, delta).toUByte()
         }
     }
 
-    override fun getDuration(): Int = 0
 }

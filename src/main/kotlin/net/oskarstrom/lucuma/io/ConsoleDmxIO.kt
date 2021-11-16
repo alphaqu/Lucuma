@@ -2,6 +2,7 @@ package net.oskarstrom.lucuma.io
 
 import net.oskarstrom.lucuma.Fixture
 
+@ExperimentalUnsignedTypes
 class ConsoleDmxIO : DmxIO {
     override fun send(channels: UByteArray, fixtures: List<Fixture>) {
         for (fixture in fixtures) {

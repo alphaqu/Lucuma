@@ -5,6 +5,7 @@ import com.fazecast.jSerialComm.SerialPort.TIMEOUT_READ_BLOCKING
 import com.fazecast.jSerialComm.SerialPort.TIMEOUT_WRITE_BLOCKING
 import net.oskarstrom.lucuma.Fixture
 
+@ExperimentalUnsignedTypes
 class ArduinoDmxIO: DmxIO {
     private val serialPort: SerialPort
 

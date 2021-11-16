@@ -1,22 +1,20 @@
 package net.oskarstrom.lucuma
 
 import net.oskarstrom.lucuma.error.LucumaParseException
-import net.oskarstrom.lucuma.insn.AssignInstruction
-import net.oskarstrom.lucuma.insn.FadeInstruction
-import net.oskarstrom.lucuma.insn.Instruction
-import net.oskarstrom.lucuma.insn.TransitionInstruction
-import net.oskarstrom.lucuma.insn.target.GlobalTarget
-import net.oskarstrom.lucuma.insn.target.RangeTarget
-import net.oskarstrom.lucuma.insn.target.SingleTarget
-import net.oskarstrom.lucuma.insn.target.Target
-import net.oskarstrom.lucuma.insn.value.ChannelValue
-import net.oskarstrom.lucuma.insn.value.HexValue
-import net.oskarstrom.lucuma.insn.value.Value
+import net.oskarstrom.lucuma.instruction.*
+import net.oskarstrom.lucuma.instruction.selector.GlobalSelector
+import net.oskarstrom.lucuma.instruction.selector.RangeSelector
+import net.oskarstrom.lucuma.instruction.selector.Selector
+import net.oskarstrom.lucuma.instruction.selector.SingleSelector
+import net.oskarstrom.lucuma.instruction.value.ChannelValue
+import net.oskarstrom.lucuma.instruction.value.HexValue
+import net.oskarstrom.lucuma.instruction.value.Value
 import net.oskarstrom.lucuma.io.ConsoleDmxIO
 import net.oskarstrom.lucuma.io.DmxIO
 
+@ExperimentalUnsignedTypes
 class Parser(code: String) {
-    val reader = CodeReader(code)
+    private val reader = CodeReader(code)
     private val fixtures = mutableListOf<Fixture>()
     private val programs = mutableMapOf<String, Program>()
     private var channels = 0
@@ -47,16 +45,14 @@ class Parser(code: String) {
             if (reader.peek() == ",") {
                 reader.read()
                 continue
-            } else {
-                break
-            }
+            } else break
         }
 
         val channels = variables["channels"] ?: reader.exception("Could not find channels declared").hashCode();
 
         val currentFixtures = fixtures.size + 1
         when (target) {
-            is RangeTarget -> {
+            is RangeSelector -> {
                 if (!target.testFixture(currentFixtures)) reader.exception(
                     "Cannot declare Fixtures out of order ${target.low} > current:${currentFixtures} < ${target.high}",
                     true
@@ -67,7 +63,7 @@ class Parser(code: String) {
                     fixtures.add(Fixture(i, channels, this.channels - channels, variables))
                 }
             }
-            is SingleTarget -> {
+            is SingleSelector -> {
                 if (!target.testFixture(currentFixtures)) reader.exception(
                     "Cannot declare Fixtures out of order ${target.id} != $currentFixtures",
                     true
@@ -76,17 +72,17 @@ class Parser(code: String) {
                 this.channels += channels
                 fixtures.add(Fixture(target.id, channels, this.channels - channels, variables))
             }
-            is GlobalTarget -> reader.exception("Fixture target is global")
+            is GlobalSelector -> reader.exception("Fixture target is global")
         }
     }
 
-    private fun parseTarget(reader: CodeReader): Target {
+    private fun parseTarget(reader: CodeReader): Selector {
         val read = reader.read()
-        return if (read == "*") GlobalTarget
+        return if (read == "*") GlobalSelector
         else if (read.contains("..")) {
             val split = read.split("..")
-            RangeTarget(parseNumber(reader, split[0]), parseNumber(reader, split[1]))
-        } else SingleTarget(parseNumber(reader, read))
+            RangeSelector(parseNumber(reader, split[0]), parseNumber(reader, split[1]))
+        } else SingleSelector(parseNumber(reader, read))
     }
 
     private fun parseProgram(reader: CodeReader) {
@@ -94,30 +90,30 @@ class Parser(code: String) {
         println("=========================== PROGRAM $programName ===========================")
         val subReader = reader.subReader("{", "}")
 
-        val groups = mutableListOf<Group>()
         val instructions = mutableListOf<Instruction>()
+        val operations = mutableListOf<Operation>()
         while (!subReader.hasMore()) {
             val read = subReader.peek()
             println(read)
             if (read.startsWith("w")) {
                 subReader.read() // peek
-                groups.add(Group(ArrayList(instructions), parseNumber(subReader, read.split("w")[1])))
-                instructions.clear()
+                instructions.add(Instruction(ArrayList(operations), parseNumber(subReader, read.split("w")[1])))
+                operations.clear()
             } else {
-                instructions.add(parseInstruction(subReader))
+                operations.add(parseInstruction(subReader))
             }
         }
 
-        if (instructions.isNotEmpty()) {
-            if (groups.isEmpty()) throw LucumaParseException("No wait instruction found in $programName")
+        if (operations.isNotEmpty()) {
+            if (instructions.isEmpty()) throw LucumaParseException("No wait instruction found in $programName")
 
-            groups[0].instructions.addAll(instructions)
+            instructions[0].operations.addAll(operations)
         }
 
-        programs[programName] = Program(programName, groups.toTypedArray())
+        programs[programName] = Program(programName, instructions.toTypedArray())
     }
 
-    private fun parseInstruction(reader: CodeReader): Instruction {
+    private fun parseInstruction(reader: CodeReader): Operation {
         val target = parseTarget(reader)
         if (reader.read() != "=") reader.exception("Could not parse instruction target. = missing")
         val value = parseValue(reader)
@@ -132,13 +128,13 @@ class Parser(code: String) {
                 }
 
                 val parseFadeTime = parseFadeTime(reader)
-                FadeInstruction(values, parseFadeTime, target, fixtures, channels)
+                FadeOperation(values, parseFadeTime, target, fixtures, channels)
             }
             "in" -> {
                 reader.read() // peek
-                TransitionInstruction(target, value, parseNumber(reader, reader.read()), channels, fixtures)
+                TransitionOperation(target, value, parseNumber(reader, reader.read()), channels, fixtures)
             }
-            else -> AssignInstruction(value, target, fixtures)
+            else -> AssignOperation(value, target, fixtures)
         }
     }
 
