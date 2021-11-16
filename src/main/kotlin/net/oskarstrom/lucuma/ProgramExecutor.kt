@@ -25,16 +25,15 @@ class ProgramExecutor(
         Thread() { while (true) tickReader() }.start()
         Thread() { while (true) tickDrawer() }.start()
 
-        val scanner = Scanner(System.`in`)
         while (true) {
-            setCurrentProgram(scanner.nextLine())
+            setCurrentProgram(readLn())
         }
     }
 
     private fun setCurrentProgram(name: String) {
-        currentProgram = programs[name] ?: fun(): Program {
+        currentProgram = programs[name] ?: {
             println("Could not find program $name")
-            return Program("main", arrayOf(emptyGroup))
+            Program("main", arrayOf(emptyGroup))
         }.invoke()
         groupPos = 0
     }
@@ -53,7 +52,7 @@ class ProgramExecutor(
         val group = groupQueue.poll()
 
         // align time
-        val realTime = System.currentTimeMillis()
+        val realTime = getTimeMillis()
         val instructionDuration = group.delay
 
         var speedMultiply = 1.0

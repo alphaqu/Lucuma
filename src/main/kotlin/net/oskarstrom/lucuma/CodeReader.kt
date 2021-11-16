@@ -15,22 +15,23 @@ class CodeReader {
     }
 
     constructor(code: String) {
-        val strings = ArrayList<String>()
+        val strings = mutableListOf<String>()
 
+        //FIXME(leocth): what the heck?
         var builder: StringBuilder? = StringBuilder()
         for (c in (code.replace("(/\\*([^*]|[\r\n]|(\\*+([^*/]|[\r\n])))*\\*+/)|(//.*)".toRegex(), "")).toCharArray()) {
             when (split(c)) {
-                0 -> {
-                    if (builder == null) builder = StringBuilder();
+                SplitType.NONE -> {
+                    if (builder == null) builder = StringBuilder()
                     builder.append(c);
                 }
-                1 -> {
-                    if (builder != null) strings.add(builder.toString());
+                SplitType.INCLUSIVE -> {
+                    if (builder != null) strings.add(builder.toString())
                     builder = null;
                 }
-                2 -> {
-                    if (builder != null) strings.add(builder.toString());
-                    strings.add(c.toString());
+                SplitType.EXCLUSIVE -> {
+                    if (builder != null) strings.add(builder.toString())
+                    strings.add(c.toString())
                     builder = null;
                 }
             }
@@ -39,18 +40,13 @@ class CodeReader {
 
         this.strings = strings.filter { it.isNotEmpty() }.toTypedArray()
         this.start = 0
-        this.end = this.strings.size;
+        this.end = this.strings.size
     }
 
-    // 0 = no
-    // 1 = split exclusive
-    // 2 = split inclusive
-    private fun split(ch: Char): Int {
-        return when (ch) {
-            '\t', '\r', ' ' -> 1;
-            '{', '}', '\"', ',', '>', '=', '*', ':', '\n' -> 2;
-            else -> 0;
-        };
+    private fun split(ch: Char) = when (ch) {
+        '\t', '\r', ' ' -> SplitType.EXCLUSIVE
+        '{', '}', '\"', ',', '>', '=', '*', ':', '\n' -> SplitType.INCLUSIVE
+        else -> SplitType.NONE
     }
 
     fun subReader(openingCharacter: String, closingCharacter: String): CodeReader {
@@ -150,4 +146,10 @@ class CodeReader {
         }
         return builder.toString()
     }
+}
+
+enum class SplitType {
+    NONE,
+    INCLUSIVE,
+    EXCLUSIVE
 }

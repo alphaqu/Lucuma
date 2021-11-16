@@ -1,4 +1,4 @@
 package net.oskarstrom.lucuma.error
 
-class LucumaRuntimeError(string: String): Exception(string)  {
-}
+@JvmInline
+value class LucumaParseException(string: String): Exception(string)
