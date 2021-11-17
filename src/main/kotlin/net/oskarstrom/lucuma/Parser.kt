@@ -8,6 +8,7 @@ import net.oskarstrom.lucuma.instruction.value.HexValue
 import net.oskarstrom.lucuma.instruction.value.Value
 import net.oskarstrom.lucuma.io.ConsoleDmxIO
 import net.oskarstrom.lucuma.io.DmxIO
+import kotlin.math.roundToInt
 
 @ExperimentalUnsignedTypes
 class Parser(code: String) {
@@ -15,6 +16,7 @@ class Parser(code: String) {
     private val fixtures = mutableListOf<Fixture>()
     private val programs = mutableMapOf<String, Program>()
     private var channels = 0
+    private var bpm = -1
 
 
     fun parse(io: DmxIO): ProgramExecutor {
@@ -46,7 +48,7 @@ class Parser(code: String) {
             } else break
         }
 
-        val channels = parseNumber(
+        val channels = parseMs(
             reader,
             variables["channels"] ?: reader.exception("Could not find channels declared").toString()
         );
@@ -80,7 +82,6 @@ class Parser(code: String) {
     private fun parseOption(reader: CodeReader) {
         val target = parseTarget(reader)
         println("=========================== OPTION $target ===========================")
-        println(target)
         reader.ensure("set")
         val property = reader.read()
         reader.ensure("=")
@@ -99,7 +100,7 @@ class Parser(code: String) {
         return if (read == "*") GlobalSelector
         else if (read.contains("..")) {
             val split = read.split("..")
-            RangeSelector(parseNumber(reader, split[0]), parseNumber(reader, split[1]))
+            RangeSelector(parseMs(reader, split[0]), parseMs(reader, split[1]))
         } else {
             val value = read.toIntOrNull()
             if (value == null) IdSelector(read, fixtures)
@@ -110,19 +111,67 @@ class Parser(code: String) {
     private fun parseProgram(reader: CodeReader) {
         val programName = reader.read()
         println("=========================== PROGRAM $programName ===========================")
-        val subReader = reader.subReader("{", "}")
 
+        val instructions = parseInstructions(reader.subReader("{", "}"), programName)
+
+        programs[programName] = Program(programName, instructions.toTypedArray())
+    }
+
+    private fun parseInstructions(
+        reader: CodeReader,
+        programName: String
+    ): MutableList<Instruction> {
+        var currentTime = 0
         val instructions = mutableListOf<Instruction>()
         val operations = mutableListOf<Operation>()
-        while (!subReader.hasMore()) {
-            val read = subReader.peek()
-            println(read)
-            if (read.startsWith("w")) {
-                subReader.read() // peek
-                instructions.add(Instruction(ArrayList(operations), parseNumber(subReader, read.split("w")[1])))
-                operations.clear()
-            } else {
-                operations.add(parseInstruction(subReader))
+
+        fun parseDelayValue(subReader: CodeReader): Int {
+            subReader.read() // peek
+            subReader.ensure(":")
+            return parseMs(subReader, subReader.read())
+        }
+
+        while (!reader.hasMore()) {
+            when (reader.peek()) {
+                "w" -> {
+                    val delay = parseDelayValue(reader)
+                    currentTime += delay
+                    instructions.add(Instruction(ArrayList(operations), delay))
+                    operations.clear()
+                }
+                "t" -> {
+                    val targetTime = parseDelayValue(reader)
+                    if (targetTime < currentTime)
+                        reader.exception("Target time ${targetTime}ms is expected when track is already ${currentTime}ms in")
+
+                    val delay = targetTime - currentTime
+                    currentTime += delay
+                    instructions.add(Instruction(ArrayList(operations), delay))
+                    operations.clear()
+                }
+                "repeat" -> {
+                    instructions.add(Instruction(ArrayList(operations), 0))
+                    operations.clear()
+
+                    reader.read() // peek
+                    val repeatAmount = parseNumber(reader, reader.read())
+                    val parseInstructions = parseInstructions(reader.subReader("{", "}"), programName)
+                    for (i in 0 until repeatAmount) {
+                        for (parseInstruction in parseInstructions)
+                            currentTime += parseInstruction.delay
+
+                        instructions.addAll(parseInstructions)
+                    }
+                }
+                "bpm" -> {
+                    reader.read() // peek
+                    reader.ensure("=")
+                    bpm = parseMs(reader, reader.read())
+                    println("set bpm to $bpm")
+                }
+                else -> {
+                    operations.add(parseOperation(reader))
+                }
             }
         }
 
@@ -131,11 +180,10 @@ class Parser(code: String) {
 
             instructions[0].operations.addAll(operations)
         }
-
-        programs[programName] = Program(programName, instructions.toTypedArray())
+        return instructions
     }
 
-    private fun parseInstruction(reader: CodeReader): Operation {
+    private fun parseOperation(reader: CodeReader): Operation {
         val target = parseTarget(reader)
         if (reader.read() != "=") reader.exception("Could not parse instruction target. = missing")
         val value = parseValue(reader)
@@ -154,7 +202,7 @@ class Parser(code: String) {
             }
             "in" -> {
                 reader.read() // peek
-                TransitionOperation(target, value, parseNumber(reader, reader.read()), channels, fixtures)
+                TransitionOperation(target, value, parseMs(reader, reader.read()), channels, fixtures)
             }
             else -> AssignOperation(value, target, fixtures)
         }
@@ -166,7 +214,7 @@ class Parser(code: String) {
             return HexValue(read.substring(1).chunked(2).map { it.toUByte(16) }.toUByteArray())
         } else if (reader.peek().contains(":")) {
             reader.read() // peek
-            return ChannelValue(parseNumber(reader, read), parseUByte(reader, reader.read()))
+            return ChannelValue(parseMs(reader, read), parseUByte(reader, reader.read()))
         } else {
             reader.exception("Could not parse value")
         }
@@ -177,7 +225,17 @@ class Parser(code: String) {
     private fun parseFadeTime(reader: CodeReader): Int {
         val read = reader.read()
         if (read != "in") reader.exception("Could not find \"in\" syntax in a fade instruction")
-        return parseNumber(reader, reader.read())
+        return parseMs(reader, reader.read())
+    }
+
+    private fun parseMs(reader: CodeReader, string: String): Int {
+        return if (string.startsWith("b")) {
+            if (bpm == -1) reader.exception("Beats per minute has not been set in the program.")
+            val beatDuration = 60 / bpm.toDouble()
+            val roundToInt = ((parseNumber(reader, string.split("b")[1]) * beatDuration * 1000) / 4).roundToInt()
+            println(roundToInt)
+            roundToInt
+        } else parseNumber(reader, string)
     }
 
     private fun parseNumber(reader: CodeReader, string: String): Int {
@@ -202,6 +260,9 @@ fun main() {
         val parser = Parser(Parser::class.java.getResource("/net.oskarstrom.lucuma/test.luc")!!.readText())
 
         val executor = parser.parse(io)
+
+        println("Hit enter to start")
+        val readLine = readLine()
         executor.launch()
     } finally {
         //io.send(byteArrayOf(0, 0, 0))

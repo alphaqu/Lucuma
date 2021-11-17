@@ -100,6 +100,7 @@ class CodeReader {
         if (currentPos >= end) return end
         if (currentPos >= strings.size) return strings.size
         while (true) {
+            if (currentPos >= strings.size) return strings.size
             val s = strings[currentPos++]
             if (s == "\n") continue
             return currentPos - 1
@@ -119,13 +120,13 @@ class CodeReader {
                 break
             }
         }
-        for (i in start..strings.size) {
+        for (i in start until strings.size) {
             val s = strings[i]
             stringBuilder.append(s).append(' ')
             if (s == "\n") break
         }
 
-        for (i in start..strings.size) {
+        for (i in start until strings.size) {
             val s = strings[i]
             if (i == getPos() - 1 || line)
                 stringBuilder.append("^".repeat(s.length)).append(if (line) '^' else ' ')

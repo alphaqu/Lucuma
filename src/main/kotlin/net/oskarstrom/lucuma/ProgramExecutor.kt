@@ -59,24 +59,29 @@ class ProgramExecutor(
         val realTime = System.currentTimeMillis()
         val instructionDuration = group.delay
 
+
+        group.start(readChannels)
+        currentInstruction = group
+
+        val speedMultiply = getSpeed(realTime, instructionDuration)
+        Thread.sleep((group.delay.toLong() / speedMultiply).toLong())
+        currentInstruction.render(readChannels, speedMultiply)
+
+        group.end()
+        programTime += instructionDuration
+    }
+
+    private fun getSpeed(realTime: Long, instructionDuration: Int): Double {
         var speedMultiply = 1.0
         if (realTime < programTime) {
             val timeAhead = programTime - realTime
             Thread.sleep(timeAhead)
         } else if (programTime < realTime) {
             val timeBehind = realTime - programTime
-            speedMultiply = if (timeBehind > instructionDuration) 10.0
+            speedMultiply = if (timeBehind > instructionDuration) 1000.0
             else instructionDuration / (instructionDuration - timeBehind.toDouble())
         }
-
-        group.start(readChannels)
-        currentInstruction = group
-        val toLong = (group.delay.toLong() / speedMultiply).toLong()
-        println(toLong)
-        Thread.sleep(toLong)
-        currentInstruction.render(readChannels, speedMultiply)
-        group.end()
-        programTime += instructionDuration
+        return speedMultiply
     }
 
     private fun pushGroup() {
