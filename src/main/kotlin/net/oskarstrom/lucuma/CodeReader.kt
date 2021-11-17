@@ -136,6 +136,10 @@ class CodeReader {
         throw LucumaParseException(" $error \n $stringBuilder")
     }
 
+    fun ensure(expected: String) {
+        if (read() != expected) exception("Invalid syntax. Expected $expected")
+    }
+
     private fun getPos() = start + pos
 
     private fun getAndIncrementPos() = start + pos++

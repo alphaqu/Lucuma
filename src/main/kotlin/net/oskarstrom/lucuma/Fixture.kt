@@ -1,8 +1,8 @@
 package net.oskarstrom.lucuma
 
 data class Fixture(
-    val id: Int, 
+    val fixtureId: Int,
     val channels: Int,
-    val channelStart: Int, 
-    val variables: Map<String, Int>,
+    val channelStart: Int,
+    val variables: MutableMap<String, String>,
 )

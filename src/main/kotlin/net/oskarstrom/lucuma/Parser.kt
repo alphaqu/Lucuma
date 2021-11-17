@@ -2,10 +2,7 @@ package net.oskarstrom.lucuma
 
 import net.oskarstrom.lucuma.error.LucumaParseException
 import net.oskarstrom.lucuma.instruction.*
-import net.oskarstrom.lucuma.instruction.selector.GlobalSelector
-import net.oskarstrom.lucuma.instruction.selector.RangeSelector
-import net.oskarstrom.lucuma.instruction.selector.Selector
-import net.oskarstrom.lucuma.instruction.selector.SingleSelector
+import net.oskarstrom.lucuma.instruction.selector.*
 import net.oskarstrom.lucuma.instruction.value.ChannelValue
 import net.oskarstrom.lucuma.instruction.value.HexValue
 import net.oskarstrom.lucuma.instruction.value.Value
@@ -24,6 +21,7 @@ class Parser(code: String) {
         while (true) {
             if (reader.hasMore()) break
             when (val read = reader.read()) {
+                "option" -> parseOption(reader)
                 "fixture" -> parseFixture(reader)
                 "program" -> parseProgram(reader)
                 else -> reader.exception("Could not parse $read")
@@ -35,20 +33,23 @@ class Parser(code: String) {
     private fun parseFixture(reader: CodeReader) {
         val target = parseTarget(reader)
         println("=========================== FIXTURE $target ===========================")
-        if (reader.read() != "set") reader.exception("Fixture setter set keyword is missing")
+        reader.ensure("set")
 
-        val variables = mutableMapOf<String, Int>()
+        val variables = mutableMapOf<String, String>()
         while (true) {
             val variableName = reader.read()
-            if (reader.read() != "=") reader.exception("Fixture variable setter is missing =")
-            variables[variableName] = parseNumber(reader, reader.read())
+            reader.ensure("=")
+            variables[variableName] = reader.read()
             if (reader.peek() == ",") {
                 reader.read()
                 continue
             } else break
         }
 
-        val channels = variables["channels"] ?: reader.exception("Could not find channels declared").hashCode();
+        val channels = parseNumber(
+            reader,
+            variables["channels"] ?: reader.exception("Could not find channels declared").toString()
+        );
 
         val currentFixtures = fixtures.size + 1
         when (target) {
@@ -60,7 +61,7 @@ class Parser(code: String) {
 
                 for (i in target.low..target.high) {
                     this.channels += channels
-                    fixtures.add(Fixture(i, channels, this.channels - channels, variables))
+                    fixtures.add(Fixture(i, channels, this.channels - channels, HashMap(variables)))
                 }
             }
             is SingleSelector -> {
@@ -70,9 +71,26 @@ class Parser(code: String) {
                 )
 
                 this.channels += channels
-                fixtures.add(Fixture(target.id, channels, this.channels - channels, variables))
+                fixtures.add(Fixture(target.id, channels, this.channels - channels, HashMap(variables)))
             }
             is GlobalSelector -> reader.exception("Fixture target is global")
+        }
+    }
+
+    private fun parseOption(reader: CodeReader) {
+        val target = parseTarget(reader)
+        println("=========================== OPTION $target ===========================")
+        println(target)
+        reader.ensure("set")
+        val property = reader.read()
+        reader.ensure("=")
+
+        val value = reader.read()
+        for (fixture in fixtures) {
+            if (target.testFixture(fixture.fixtureId)) {
+                val oldValue = fixture.variables.put(property, value)
+                if (oldValue != null) reader.exception("Property $property on fixture ${fixture.fixtureId} is already set to $oldValue")
+            }
         }
     }
 
@@ -82,7 +100,11 @@ class Parser(code: String) {
         else if (read.contains("..")) {
             val split = read.split("..")
             RangeSelector(parseNumber(reader, split[0]), parseNumber(reader, split[1]))
-        } else SingleSelector(parseNumber(reader, read))
+        } else {
+            val value = read.toIntOrNull()
+            if (value == null) IdSelector(read, fixtures)
+            else SingleSelector(value)
+        }
     }
 
     private fun parseProgram(reader: CodeReader) {

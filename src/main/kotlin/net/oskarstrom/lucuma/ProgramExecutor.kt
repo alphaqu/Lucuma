@@ -42,7 +42,7 @@ class ProgramExecutor(
     }
 
     private fun tickDrawer() {
-        Thread.sleep(500)
+        Thread.sleep(40)
 
         currentInstruction.render(channels, 1.0)
         io.send(channels, fixtures)
@@ -62,24 +62,20 @@ class ProgramExecutor(
         var speedMultiply = 1.0
         if (realTime < programTime) {
             val timeAhead = programTime - realTime
-            println("Ahead. $timeAhead")
             Thread.sleep(timeAhead)
         } else if (programTime < realTime) {
             val timeBehind = realTime - programTime
-            println("Behind. $timeBehind")
-            if (timeBehind > instructionDuration) {
-                // skip instruction
-                programTime += instructionDuration
-                return
-            } else speedMultiply = instructionDuration / (instructionDuration - timeBehind.toDouble())
+            speedMultiply = if (timeBehind > instructionDuration) 10.0
+            else instructionDuration / (instructionDuration - timeBehind.toDouble())
         }
 
         group.start(readChannels)
         currentInstruction = group
-        Thread.sleep((group.delay.toLong() / speedMultiply).toLong())
-        currentInstruction.render(readChannels, 1.0)
+        val toLong = (group.delay.toLong() / speedMultiply).toLong()
+        println(toLong)
+        Thread.sleep(toLong)
+        currentInstruction.render(readChannels, speedMultiply)
         group.end()
-
         programTime += instructionDuration
     }
 

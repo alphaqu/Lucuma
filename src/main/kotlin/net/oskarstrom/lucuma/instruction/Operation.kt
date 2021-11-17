@@ -12,7 +12,7 @@ interface Operation {
     fun findFixtures(selector: Selector, fixtures: List<Fixture>): List<Fixture> {
         val fixturesOut = ArrayList<Fixture>()
         for (fixture in fixtures) {
-            if (selector.testFixture(fixture.id)) {
+            if (selector.testFixture(fixture.fixtureId)) {
                 fixturesOut.add(fixture)
             }
         }

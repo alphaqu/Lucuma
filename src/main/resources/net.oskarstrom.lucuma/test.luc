@@ -1,8 +1,7 @@
 fixture 1..8 set channels = 7
 
+option 1..8 set id = middle
+
 program main {
-    1..8 = #ffffff
-    w500
-    1..8 = #000000
-    w500
+    middle = #ff0000 > #ffff00 > #00ff00 > #00ffff > #0000ff > #ff00ff > #ff0000 in 2000 w2000
 }
