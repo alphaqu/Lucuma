@@ -15,7 +15,16 @@ class TransitionOperation(
     private val targetFixtures: List<Fixture> = findFixtures(selector, fixtures)
     private val startChannels = UByteArray(channels)
     private val stopChannels = UByteArray(channels)
+    private val channelFilter = BooleanArray(channels)
     private var startTime = 0L
+
+    init {
+        for (fixture in targetFixtures) {
+            for (i in fixture.channelStart until fixture.channelStart + fixture.channels) {
+                channelFilter[i] = true
+            }
+        }
+    }
 
     override fun start(oldChannels: UByteArray) {
         for (i in oldChannels.indices) {
@@ -34,9 +43,11 @@ class TransitionOperation(
     override fun render(channels: UByteArray, speed: Double) {
         val delta = Math.delta(startTime, transitionTime)
         for (i in channels.indices) {
-            val start = startChannels[i].toInt()
-            val end = stopChannels[i].toInt()
-            channels[i] = Math.blend(start, end, delta).toUByte()
+            if (channelFilter[i]) {
+                val start = startChannels[i].toInt()
+                val end = stopChannels[i].toInt()
+                channels[i] = Math.blend(start, end, delta).toUByte()
+            }
         }
     }
 

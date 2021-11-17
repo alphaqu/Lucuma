@@ -195,10 +195,11 @@ class Parser(code: String) {
     }
 }
 
+@ExperimentalUnsignedTypes
 fun main() {
     val io = ConsoleDmxIO()
     try {
-        val parser = Parser(Parser::class.java.getResource("/net.oskarstrom.lucuma/test.luc").readText())
+        val parser = Parser(Parser::class.java.getResource("/net.oskarstrom.lucuma/test.luc")!!.readText())
 
         val executor = parser.parse(io)
         executor.launch()
