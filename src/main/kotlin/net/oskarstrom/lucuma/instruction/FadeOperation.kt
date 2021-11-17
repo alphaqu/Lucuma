@@ -35,8 +35,10 @@ class FadeOperation(
         }
 
         for (targetFixture in this.targetFixtures) {
-            for ((i, value) in values.withIndex())
+            for ((i, value) in values.withIndex()) {
                 value.apply(fadeChannels[i], targetFixture)
+                value.tick()
+            }
         }
 
         this.startTime = System.currentTimeMillis()
@@ -56,5 +58,4 @@ class FadeOperation(
             }
         }
     }
-
 }

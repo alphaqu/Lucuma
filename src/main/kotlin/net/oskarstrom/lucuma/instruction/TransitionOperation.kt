@@ -34,6 +34,7 @@ class TransitionOperation(
 
         for (targetFixture in this.targetFixtures) {
             value.apply(this.stopChannels, targetFixture)
+            value.tick()
         }
 
         startTime = System.currentTimeMillis()

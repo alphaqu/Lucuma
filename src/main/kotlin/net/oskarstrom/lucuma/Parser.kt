@@ -5,6 +5,7 @@ import net.oskarstrom.lucuma.instruction.*
 import net.oskarstrom.lucuma.instruction.selector.*
 import net.oskarstrom.lucuma.instruction.value.ChannelValue
 import net.oskarstrom.lucuma.instruction.value.HexValue
+import net.oskarstrom.lucuma.instruction.value.SwitchingValue
 import net.oskarstrom.lucuma.instruction.value.Value
 import net.oskarstrom.lucuma.io.ConsoleDmxIO
 import net.oskarstrom.lucuma.io.DmxIO
@@ -210,17 +211,22 @@ class Parser(code: String) {
 
     private fun parseValue(reader: CodeReader): Value {
         val read = reader.read()
-        if (read.startsWith("#")) {
-            return HexValue(read.substring(1).chunked(2).map { it.toUByte(16) }.toUByteArray())
-        } else if (reader.peek().contains(":")) {
+        if (read == "[") {
+            val values = ArrayList<Value>()
+            do {
+                values.add(parseValue(reader))
+            } while (reader.read() == ",")
+            return SwitchingValue(values, 0)
+        } else if (read == "#") {
+            return HexValue(reader.read().chunked(2).map { it.toUByte(16) }.toUByteArray())
+        }
+        if (reader.peek().contains(":")) {
             reader.read() // peek
             return ChannelValue(parseMs(reader, read), parseUByte(reader, reader.read()))
-        } else {
-            reader.exception("Could not parse value")
         }
+        reader.exception("Could not parse value")
         throw LucumaParseException("end")
     }
-
 
     private fun parseFadeTime(reader: CodeReader): Int {
         val read = reader.read()

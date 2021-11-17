@@ -42,7 +42,7 @@ class ProgramExecutor(
     }
 
     private fun tickDrawer() {
-        Thread.sleep(40)
+        Thread.sleep(80)
 
         currentInstruction.render(channels, 1.0)
         io.send(channels, fixtures)

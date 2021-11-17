@@ -46,7 +46,7 @@ class CodeReader {
 
     private fun split(ch: Char) = when (ch) {
         '\t', '\r', ' ' -> SplitType.EXCLUSIVE
-        '{', '}', '\"', ',', '>', '=', '*', ':', '\n' -> SplitType.INCLUSIVE
+        '{', '}', '\"', ',', '>', '=', '*', ':', '\n', '[', ']', '#' -> SplitType.INCLUSIVE
         else -> SplitType.NONE
     }
 

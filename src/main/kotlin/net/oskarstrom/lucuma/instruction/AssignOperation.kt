@@ -14,4 +14,8 @@ class AssignOperation(private val value: Value, selector: Selector, fixtures: Li
         }
     }
 
+    override fun stop() {
+        value.tick()
+    }
+
 }
