@@ -8,7 +8,7 @@ object Math {
         else if (ratio >= 1) b
         else (a + (b - a) * ratio).roundToInt()
 
-    fun delta(startTime: Long, duration: Int): Double {
+    fun delta(startTime: Long, duration: Double): Double {
         val time = System.currentTimeMillis() - startTime
         val rawDelta = time.toDouble() / duration
         return rawDelta.coerceIn(0.0, 1.0)

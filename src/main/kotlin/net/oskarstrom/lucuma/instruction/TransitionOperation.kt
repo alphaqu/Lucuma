@@ -42,12 +42,20 @@ class TransitionOperation(
 
     // TODO: deduplicate code that has in common with FadeInstruction
     override fun render(channels: UByteArray, speed: Double) {
-        val delta = Math.delta(startTime, transitionTime)
+        val delta = Math.delta(startTime, transitionTime / speed)
         for (i in channels.indices) {
             if (channelFilter[i]) {
                 val start = startChannels[i].toInt()
                 val end = stopChannels[i].toInt()
                 channels[i] = Math.blend(start, end, delta).toUByte()
+            }
+        }
+    }
+
+    override fun stop(channels: UByteArray) {
+        for (i in channels.indices) {
+            if (channelFilter[i]) {
+                channels[i] = stopChannels[stopChannels.size - 1]
             }
         }
     }

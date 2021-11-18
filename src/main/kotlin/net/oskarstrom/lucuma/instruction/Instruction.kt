@@ -14,7 +14,7 @@ class Instruction(val operations: MutableList<Operation>, val delay: Int) {
         }
     }
 
-    fun end() {
-        operations.forEach { it.stop() }
+    fun end(channels: UByteArray) {
+        operations.forEach { it.stop(channels) }
     }
 }

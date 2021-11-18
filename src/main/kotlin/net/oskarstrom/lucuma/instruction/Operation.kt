@@ -7,7 +7,7 @@ import net.oskarstrom.lucuma.instruction.selector.Selector
 interface Operation {
     fun start(oldChannels: UByteArray) {}
     fun render(channels: UByteArray, speed: Double) {}
-    fun stop() {}
+    fun stop(channels: UByteArray) {}
 
     fun findFixtures(selector: Selector, fixtures: List<Fixture>): List<Fixture> {
         val fixturesOut = ArrayList<Fixture>()

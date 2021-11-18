@@ -15,10 +15,11 @@ class ProgramExecutor(
     private var currentProgram = programs.getOrDefault("main", Program("main", arrayOf(emptyInstruction)))
     private var groupPos = 0
     private var instructionQueue = ArrayDeque<Instruction>()
-    private var currentInstruction: Instruction = emptyInstruction
+    private var currentInstructionQueue = ArrayDeque<Instruction>()
 
     private var paddingSize = 3
     private var programTime = 0L
+    private var speed = 0.0
 
     private var channels = UByteArray(channels)
     private var readChannels = UByteArray(channels)
@@ -29,7 +30,11 @@ class ProgramExecutor(
         Thread() { while (true) tickDrawer() }.start()
 
         while (true) {
-            readLine()?.let { setCurrentProgram(it) }
+            readLine()?.let {
+                if (it.startsWith("p:")) {
+                    setCurrentProgram(it)
+                }
+            }
         }
     }
 
@@ -42,10 +47,16 @@ class ProgramExecutor(
     }
 
     private fun tickDrawer() {
-        Thread.sleep(80)
+        Thread.sleep(40)
+        while (currentInstructionQueue.size > 1) {
+            currentInstructionQueue.poll().end(channels)
+        }
 
-        currentInstruction.render(channels, 1.0)
-        io.send(channels, fixtures)
+        if (currentInstructionQueue.size > 0) {
+            val current = currentInstructionQueue.peek()
+            current.render(channels, speed)
+            io.send(channels, fixtures)
+        }
     }
 
 
@@ -53,42 +64,46 @@ class ProgramExecutor(
         if (instructionQueue.size < paddingSize) pushGroup()
 
 
-        val group = instructionQueue.poll()
+        val inst = instructionQueue.poll()
 
         // align time
-        val realTime = System.currentTimeMillis()
-        val instructionDuration = group.delay
+        val instructionDuration = inst.delay
 
 
-        group.start(readChannels)
-        currentInstruction = group
-
-        val speedMultiply = getSpeed(realTime, instructionDuration)
-        Thread.sleep((group.delay.toLong() / speedMultiply).toLong())
-        currentInstruction.render(readChannels, speedMultiply)
-
-        group.end()
+        inst.start(readChannels)
+        val speedMultiply = getSpeed(instructionDuration)
+        speed = speedMultiply
+        currentInstructionQueue.add(inst)
+        Thread.sleep((inst.delay / speedMultiply).toLong())
+        Thread.sleep((Math.random() * 100).toLong())
+        inst.render(readChannels, speedMultiply)
+        inst.end(readChannels)
         programTime += instructionDuration
     }
 
-    private fun getSpeed(realTime: Long, instructionDuration: Int): Double {
+    private fun getSpeed(instructionDuration: Int): Double {
+        val realTime = System.currentTimeMillis()
         var speedMultiply = 1.0
         if (realTime < programTime) {
-            val timeAhead = programTime - realTime
-            Thread.sleep(timeAhead)
+            val l = programTime - realTime
+            speedMultiply = 1 - (l / instructionDuration.toDouble())
         } else if (programTime < realTime) {
             val timeBehind = realTime - programTime
             speedMultiply = if (timeBehind > instructionDuration) 1000.0
             else instructionDuration / (instructionDuration - timeBehind.toDouble())
         }
+
         return speedMultiply
     }
 
     private fun pushGroup() {
         val groups = currentProgram.instructions
-        if (groupPos >= groups.size)
-            groupPos = 0
 
-        instructionQueue.push(groups[groupPos++])
+
+        while (instructionQueue.size < paddingSize) {
+            if (groupPos >= groups.size)
+                groupPos = 0
+            instructionQueue.push(groups[groupPos++])
+        }
     }
 }

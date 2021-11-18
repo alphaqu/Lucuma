@@ -45,8 +45,7 @@ class FadeOperation(
     }
 
     override fun render(channels: UByteArray, speed: Double) {
-
-        val delta = Math.delta(startTime, fadeTime)
+        val delta = Math.delta(startTime, fadeTime.toDouble())
         for (i in channels.indices) {
             if (channelFilter[i]) {
                 val pos = delta / stepAmount
@@ -55,6 +54,14 @@ class FadeOperation(
                     fadeChannels[(pos.toInt() + 1).coerceAtMost(values.size - 1)][i].toInt(),
                     (delta % stepAmount) / stepAmount
                 ).toUByte()
+            }
+        }
+    }
+
+    override fun stop(channels: UByteArray) {
+        for (i in channels.indices) {
+            if (channelFilter[i]) {
+                channels[i] = fadeChannels[fadeChannels.size - 1][i]
             }
         }
     }

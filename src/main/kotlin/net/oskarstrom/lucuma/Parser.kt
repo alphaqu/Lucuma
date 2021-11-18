@@ -9,6 +9,7 @@ import net.oskarstrom.lucuma.instruction.value.SwitchingValue
 import net.oskarstrom.lucuma.instruction.value.Value
 import net.oskarstrom.lucuma.io.ConsoleDmxIO
 import net.oskarstrom.lucuma.io.DmxIO
+import java.util.*
 import kotlin.math.roundToInt
 
 @ExperimentalUnsignedTypes
@@ -187,6 +188,7 @@ class Parser(code: String) {
     private fun parseOperation(reader: CodeReader): Operation {
         val target = parseTarget(reader)
         if (reader.read() != "=") reader.exception("Could not parse instruction target. = missing")
+
         val value = parseValue(reader)
 
         return when (reader.peek()) {
@@ -238,9 +240,7 @@ class Parser(code: String) {
         return if (string.startsWith("b")) {
             if (bpm == -1) reader.exception("Beats per minute has not been set in the program.")
             val beatDuration = 60 / bpm.toDouble()
-            val roundToInt = ((parseNumber(reader, string.split("b")[1]) * beatDuration * 1000) / 4).roundToInt()
-            println(roundToInt)
-            roundToInt
+            ((parseNumber(reader, string.split("b")[1]) * beatDuration * 1000) / 4).roundToInt()
         } else parseNumber(reader, string)
     }
 
@@ -268,7 +268,9 @@ fun main() {
         val executor = parser.parse(io)
 
         println("Hit enter to start")
-        val readLine = readLine()
+        val scanner = Scanner(System.`in`)
+        scanner.next()
+        println("Started")
         executor.launch()
     } finally {
         //io.send(byteArrayOf(0, 0, 0))
