@@ -5,4 +5,5 @@ import net.oskarstrom.lucuma.Fixture
 @ExperimentalUnsignedTypes
 interface DmxIO {
     fun send(channels: UByteArray, fixtures: List<Fixture>)
+    fun close()
 }

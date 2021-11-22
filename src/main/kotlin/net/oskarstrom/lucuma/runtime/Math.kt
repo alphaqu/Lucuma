@@ -1,4 +1,4 @@
-package net.oskarstrom.lucuma.instruction
+package net.oskarstrom.lucuma.runtime
 
 import kotlin.math.roundToInt
 

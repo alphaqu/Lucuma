@@ -1,15 +1,12 @@
 package net.oskarstrom.lucuma
 
 import net.oskarstrom.lucuma.error.LucumaParseException
-import net.oskarstrom.lucuma.instruction.*
-import net.oskarstrom.lucuma.instruction.selector.*
-import net.oskarstrom.lucuma.instruction.value.ChannelValue
-import net.oskarstrom.lucuma.instruction.value.HexValue
-import net.oskarstrom.lucuma.instruction.value.SwitchingValue
-import net.oskarstrom.lucuma.instruction.value.Value
-import net.oskarstrom.lucuma.io.ConsoleDmxIO
 import net.oskarstrom.lucuma.io.DmxIO
-import java.util.*
+import net.oskarstrom.lucuma.runtime.OperationGroup
+import net.oskarstrom.lucuma.runtime.operation.*
+import net.oskarstrom.lucuma.runtime.target.*
+import net.oskarstrom.lucuma.runtime.target.Target
+import net.oskarstrom.lucuma.runtime.value.*
 import kotlin.math.roundToInt
 
 @ExperimentalUnsignedTypes
@@ -21,7 +18,7 @@ class Parser(code: String) {
     private var bpm = -1
 
 
-    fun parse(io: DmxIO): ProgramExecutor {
+    fun parse(io: DmxIO): LucumaRuntime {
         while (true) {
             if (reader.hasMore()) break
             when (val read = reader.read()) {
@@ -31,7 +28,9 @@ class Parser(code: String) {
                 else -> reader.exception("Could not parse $read")
             }
         }
-        return ProgramExecutor(programs, fixtures, io, channels)
+
+        println(programs)
+        return LucumaRuntime(programs, fixtures, io, channels)
     }
 
     private fun parseFixture(reader: CodeReader) {
@@ -55,29 +54,21 @@ class Parser(code: String) {
             variables["channels"] ?: reader.exception("Could not find channels declared").toString()
         );
 
+        // TODO check order
         val currentFixtures = fixtures.size + 1
-        when (target) {
-            is RangeSelector -> {
-                if (!target.testFixture(currentFixtures)) reader.exception(
-                    "Cannot declare Fixtures out of order ${target.low} > current:${currentFixtures} < ${target.high}",
-                    true
-                )
 
-                for (i in target.low..target.high) {
+        when (target) {
+            is RangeTarget -> {
+                for (i in target.start..target.stop) {
                     this.channels += channels
                     fixtures.add(Fixture(i, channels, this.channels - channels, HashMap(variables)))
                 }
             }
-            is SingleSelector -> {
-                if (!target.testFixture(currentFixtures)) reader.exception(
-                    "Cannot declare Fixtures out of order ${target.id} != $currentFixtures",
-                    true
-                )
-
+            is NumberTarget -> {
                 this.channels += channels
-                fixtures.add(Fixture(target.id, channels, this.channels - channels, HashMap(variables)))
+                fixtures.add(Fixture(target.target, channels, this.channels - channels, HashMap(variables)))
             }
-            is GlobalSelector -> reader.exception("Fixture target is global")
+            is BooleanTarget -> reader.exception("Fixtures unknown.")
         }
     }
 
@@ -90,23 +81,24 @@ class Parser(code: String) {
 
         val value = reader.read()
         for (fixture in fixtures) {
-            if (target.testFixture(fixture.fixtureId)) {
+            if (target.testFixture(fixture)) {
                 val oldValue = fixture.variables.put(property, value)
                 if (oldValue != null) reader.exception("Property $property on fixture ${fixture.fixtureId} is already set to $oldValue")
             }
         }
     }
 
-    private fun parseTarget(reader: CodeReader): Selector {
+    private fun parseTarget(reader: CodeReader): Target {
         val read = reader.read()
-        return if (read == "*") GlobalSelector
+        return if (read == "*") BuiltinTargets.ALL
+        else if (read == "!") BuiltinTargets.NONE
         else if (read.contains("..")) {
             val split = read.split("..")
-            RangeSelector(parseMs(reader, split[0]), parseMs(reader, split[1]))
+            RangeTarget(parseMs(reader, split[0]), parseMs(reader, split[1]))
         } else {
             val value = read.toIntOrNull()
-            if (value == null) IdSelector(read, fixtures)
-            else SingleSelector(value)
+            if (value == null) NameTarget(read)
+            else NumberTarget(value)
         }
     }
 
@@ -114,17 +106,17 @@ class Parser(code: String) {
         val programName = reader.read()
         println("=========================== PROGRAM $programName ===========================")
 
-        val instructions = parseInstructions(reader.subReader("{", "}"), programName)
+        val instructions = parseGroups(reader.subReader("{", "}"), programName)
 
         programs[programName] = Program(programName, instructions.toTypedArray())
     }
 
-    private fun parseInstructions(
+    private fun parseGroups(
         reader: CodeReader,
         programName: String
-    ): MutableList<Instruction> {
+    ): MutableList<OperationGroup> {
         var currentTime = 0
-        val instructions = mutableListOf<Instruction>()
+        val groups = mutableListOf<OperationGroup>()
         val operations = mutableListOf<Operation>()
 
         fun parseDelayValue(subReader: CodeReader): Int {
@@ -138,7 +130,7 @@ class Parser(code: String) {
                 "w" -> {
                     val delay = parseDelayValue(reader)
                     currentTime += delay
-                    instructions.add(Instruction(ArrayList(operations), delay))
+                    groups.add(OperationGroup(ArrayList(operations), delay))
                     operations.clear()
                 }
                 "t" -> {
@@ -148,21 +140,21 @@ class Parser(code: String) {
 
                     val delay = targetTime - currentTime
                     currentTime += delay
-                    instructions.add(Instruction(ArrayList(operations), delay))
+                    groups.add(OperationGroup(ArrayList(operations), delay))
                     operations.clear()
                 }
                 "repeat" -> {
-                    instructions.add(Instruction(ArrayList(operations), 0))
+                    groups.add(OperationGroup(ArrayList(operations), 0))
                     operations.clear()
 
                     reader.read() // peek
                     val repeatAmount = parseNumber(reader, reader.read())
-                    val parseInstructions = parseInstructions(reader.subReader("{", "}"), programName)
+                    val parseInstructions = parseGroups(reader.subReader("{", "}"), programName)
                     for (i in 0 until repeatAmount) {
                         for (parseInstruction in parseInstructions)
                             currentTime += parseInstruction.delay
 
-                        instructions.addAll(parseInstructions)
+                        groups.addAll(parseInstructions)
                     }
                 }
                 "bpm" -> {
@@ -178,17 +170,16 @@ class Parser(code: String) {
         }
 
         if (operations.isNotEmpty()) {
-            if (instructions.isEmpty()) throw LucumaParseException("No wait instruction found in $programName")
+            if (groups.isEmpty()) throw LucumaParseException("No wait instruction found in $programName")
 
-            instructions[0].operations.addAll(operations)
+            groups[0].operations.addAll(operations)
         }
-        return instructions
+        return groups
     }
 
     private fun parseOperation(reader: CodeReader): Operation {
         val target = parseTarget(reader)
-        if (reader.read() != "=") reader.exception("Could not parse instruction target. = missing")
-
+        reader.ensure("=")
         val value = parseValue(reader)
 
         return when (reader.peek()) {
@@ -201,33 +192,36 @@ class Parser(code: String) {
                 }
 
                 val parseFadeTime = parseFadeTime(reader)
-                FadeOperation(values, parseFadeTime, target, fixtures, channels)
+                if (values.size >= 3) {
+                    MultiFadeOperation(fixtures, target, parseFadeTime, values)
+                } else {
+                    FadeOperation(fixtures, target, parseFadeTime, values[0], values[1])
+                }
             }
             "in" -> {
                 reader.read() // peek
-                TransitionOperation(target, value, parseMs(reader, reader.read()), channels, fixtures)
+                TransitionOperation(fixtures, target, parseMs(reader, reader.read()), value)
             }
-            else -> AssignOperation(value, target, fixtures)
+            else -> SetOperation(fixtures, target, value)
         }
     }
 
     private fun parseValue(reader: CodeReader): Value {
         val read = reader.read()
-        if (read == "[") {
+        return if (read == "[") {
             val values = ArrayList<Value>()
             do {
                 values.add(parseValue(reader))
             } while (reader.read() == ",")
-            return SwitchingValue(values, 0)
+            SwitchingValue(values)
         } else if (read == "#") {
-            return HexValue(reader.read().chunked(2).map { it.toUByte(16) }.toUByteArray())
+            HexValue(reader.read().chunked(2).map { it.toUByte(16) }.toUByteArray())
+        } else if (reader.peek() == ":") {
+            reader.read()
+            ChannelValue(parseNumber(reader, read) - 1, parseValue(reader))
+        } else {
+            NumberValue(parseUByte(reader, read))
         }
-        if (reader.peek().contains(":")) {
-            reader.read() // peek
-            return ChannelValue(parseMs(reader, read), parseUByte(reader, reader.read()))
-        }
-        reader.exception("Could not parse value")
-        throw LucumaParseException("end")
     }
 
     private fun parseFadeTime(reader: CodeReader): Int {
@@ -256,23 +250,5 @@ class Parser(code: String) {
         if (ms == null) reader.exception("Could not parse number")
         // safe to assume that npe won't happen as it gets thrown above
         return ms!!
-    }
-}
-
-@ExperimentalUnsignedTypes
-fun main() {
-    val io = ConsoleDmxIO()
-    try {
-        val parser = Parser(Parser::class.java.getResource("/net.oskarstrom.lucuma/test.luc")!!.readText())
-
-        val executor = parser.parse(io)
-
-        println("Hit enter to start")
-        val scanner = Scanner(System.`in`)
-        scanner.next()
-        println("Started")
-        executor.launch()
-    } finally {
-        //io.send(byteArrayOf(0, 0, 0))
     }
 }
